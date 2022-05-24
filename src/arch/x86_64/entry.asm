@@ -20,15 +20,27 @@ mboot:
     ; Multiboot macros to make a few lines more readable later
     MULTIBOOT_PAGE_ALIGN	equ (1 << 0)
     MULTIBOOT_MEMORY_INFO	equ (1 << 1)
-    MULTIBOOT_HEADER_MAGIC	equ 0x1BADB002
+    MULTIBOOT_HEADER_MAGIC	equ 0xE85250D6
+    MULTIBOOT_HEADER_ARCH   equ 0 ; architecture 0 (protected mode i386)
     MULTIBOOT_HEADER_FLAGS	equ MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO
-    MULTIBOOT_CHECKSUM		equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
+    MULTIBOOT_HEADER_SIZE   equ mboot_end - mboot
+    MULTIBOOT_CHECKSUM		equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_ARCH + MULTIBOOT_HEADER_SIZE)
 
     ; This is the GRUB Multiboot header. A boot signature
     dd MULTIBOOT_HEADER_MAGIC
-    dd MULTIBOOT_HEADER_FLAGS
+    dd MULTIBOOT_HEADER_ARCH
+    dd MULTIBOOT_HEADER_SIZE
     dd MULTIBOOT_CHECKSUM
-    dd 0, 0, 0, 0, 0 ; address fields
+
+    dw 4 ; Flags Tag
+    dw MULTIBOOT_HEADER_FLAGS
+    dd 12
+    dd 0
+
+    dw 0 ; End tag
+    dw 0
+    dd 8
+mboot_end:
 
 ALIGN 4
 ; we need already a valid GDT to switch in the 64bit modus
@@ -170,6 +182,81 @@ Linvalid:
 
 
 [BITS 64]
+global startfc64
+startfc64:
+
+    cli ; avoid any interrupt
+
+    ; Initialize stack pointer
+    mov rsp, boot_stack
+    add rsp, BOOT_STACK_SIZE - 16
+
+    ; initialize page tables
+    ; map kernel 1:1
+    push rdi
+    push rbx
+    push rcx
+    mov rcx, kernel_start
+    mov rbx, kernel_end
+    add rbx, 0x1000
+L0_64: cmp rcx, rbx
+    jae L1_64
+    mov rax, rcx
+    and eax, 0xFFFFF000       ; page align lower half
+    mov rdi, rax
+    shr rdi, 9                ; (edi >> 12) * 8 (index for boot_pgt)
+    add rdi, boot_pgt1
+    or rax, 0x3               ; set present and writable bits
+    mov QWORD [rdi], rax
+    add rcx, 0x1000
+    jmp L0_64
+L1_64:
+    pop rcx
+    pop rbx
+    pop rdi
+
+    mov QWORD [mb_info], rsi
+
+    ; DEBUGGING
+    mov QWORD [debug_data], boot_pml4
+
+    ; Set CR3
+    mov eax, boot_pml4
+    ;or eax, (1 << 0)        ; set present bit
+    mov cr3, rax
+
+    ; we need to enable PAE modus
+    mov rax, cr4
+    or eax, 1 << 5
+    mov cr4, rax
+
+    ; switch to the compatibility mode (which is part of long mode)
+    mov ecx, 0xC0000080
+    rdmsr
+    or eax, 1 << 8
+    wrmsr
+
+
+    ; Set CR4
+    mov rax, cr4
+    and eax, 0x00000000fffbf9ff     ; disable SSE
+    ;or eax, (1 << 7)       ; enable PGE
+    mov cr4, rax
+    
+    ; Set CR0 (PM-bit is already set)
+    mov rax, cr0
+    and rax, ~(1 << 2)      ; disable FPU emulation
+    or eax, (1 << 1)        ; enable FPU montitoring
+    and rax, ~(1 << 30)     ; enable caching
+    and rax, ~(1 << 29)     ; disable write through caching
+    and rax, ~(1 << 16)	    ; allow kernel write access to read-only pages
+    or eax, (1 << 31)       ; enable paging
+    mov cr0, rax
+
+
+    lgdt [GDT64.Pointer] ; Load the 64-bit global descriptor table.
+    jmp start64 ; Set the code segment and enter 64-bit long mode.
+
 start64:
     ; initialize segment registers
     mov ax, GDT64.Data
@@ -191,9 +278,14 @@ start64:
 
 SECTION .data
 
-global mb_info:
+global mb_info
 ALIGN 8
 mb_info:
+    DQ 0
+
+global debug_data
+ALIGN 8
+debug_data:
     DQ 0
 
 ALIGN 4096

@@ -1,6 +1,6 @@
 OUTPUT_FORMAT("elf64-x86-64")
 OUTPUT_ARCH("i386:x86-64")
-ENTRY(_start)
+ENTRY(startfc64)
 phys = 0x000000100000;
 
 SECTIONS
