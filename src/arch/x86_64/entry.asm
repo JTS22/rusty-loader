@@ -217,32 +217,11 @@ L1_64:
 
     mov QWORD [mb_info], rsi
 
-    ; DEBUGGING
-    mov QWORD [debug_data], boot_pml4
-
     ; Set CR3
     mov eax, boot_pml4
     ;or eax, (1 << 0)        ; set present bit
     mov cr3, rax
 
-    ; we need to enable PAE modus
-    mov rax, cr4
-    or eax, 1 << 5
-    mov cr4, rax
-
-    ; switch to the compatibility mode (which is part of long mode)
-    mov ecx, 0xC0000080
-    rdmsr
-    or eax, 1 << 8
-    wrmsr
-
-
-    ; Set CR4
-    mov rax, cr4
-    and eax, 0x00000000fffbf9ff     ; disable SSE
-    ;or eax, (1 << 7)       ; enable PGE
-    mov cr4, rax
-    
     ; Set CR0 (PM-bit is already set)
     mov rax, cr0
     and rax, ~(1 << 2)      ; disable FPU emulation
@@ -252,7 +231,6 @@ L1_64:
     and rax, ~(1 << 16)	    ; allow kernel write access to read-only pages
     or eax, (1 << 31)       ; enable paging
     mov cr0, rax
-
 
     lgdt [GDT64.Pointer] ; Load the 64-bit global descriptor table.
     jmp start64 ; Set the code segment and enter 64-bit long mode.

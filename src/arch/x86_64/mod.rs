@@ -14,6 +14,7 @@ use multiboot::information::{MemoryManagement, Multiboot, PAddr};
 extern "C" {
 	static mb_info: usize;
 	static kernel_end: u8;
+	static debug_data: usize;
 }
 
 // CONSTANTS
@@ -73,6 +74,8 @@ pub fn output_message_byte(byte: u8) {
 }
 
 pub unsafe fn find_kernel() -> &'static [u8] {
+	loaderlog!("Debug data: {:#b}", debug_data);
+
 	// Identity-map the Multiboot information.
 	assert!(mb_info > 0, "Could not find boot_params");
 	loaderlog!("Found boot_params at 0x{:x}", mb_info);
