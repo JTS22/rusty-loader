@@ -214,7 +214,11 @@ pub unsafe fn boot_kernel(
 	// Supply the parameters to the HermitCore application.
 	BOOT_INFO.base = new_addr;
 	BOOT_INFO.image_size = mem_size;
-	BOOT_INFO.mb_info = mb_info as u64;
+
+	BOOT_INFO.mmap_format = 1; // Indicate Linux Boot-Params format
+	BOOT_INFO.mmap_length = *((&(mb_info as usize) + E820_ENTRIES_OFFSET) as *const u8) as u64 * 20;
+	BOOT_INFO.mmap_addr = (&(mb_info as usize) + E820_TABLE_OFFSET) as u64;
+
 
 	let cmdline_ptr = *((&(mb_info as usize) + LINUX_SETUP_HEADER_OFFSET + CMD_LINE_PTR_OFFSET) as *const u32);
 	let cmdline_size = *((&(mb_info as usize) + LINUX_SETUP_HEADER_OFFSET + CMD_LINE_SIZE_OFFSET) as *const u32);

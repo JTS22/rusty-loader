@@ -16,7 +16,9 @@ pub struct BootInfo {
 	pub current_percore_address: u64,
 	pub host_logical_addr: u64,
 	pub boot_gtod: u64,
-	pub mb_info: u64,
+	pub mmap_format: u8,
+	pub mmap_length: u64,
+	pub mmap_addr: u64,
 	pub cmdline: u64,
 	pub cmdsize: u64,
 	pub cpu_freq: u32,
@@ -48,7 +50,9 @@ impl BootInfo {
 			current_percore_address: 0,
 			host_logical_addr: 0,
 			boot_gtod: 0,
-			mb_info: 0,
+			mmap_format: 0,
+			mmap_length: 0,
+			mmap_addr: 0,
 			cmdline: 0,
 			cmdsize: 0,
 			cpu_freq: 0,
@@ -86,7 +90,9 @@ impl fmt::Debug for BootInfo {
 		)?;
 		writeln!(f, "host_logical_addr {:#x}", self.host_logical_addr)?;
 		writeln!(f, "boot_gtod {:#x}", self.boot_gtod)?;
-		writeln!(f, "mb_info {:#x}", self.mb_info)?;
+		writeln!(f, "mmap_format {}", self.mmap_format)?;
+		writeln!(f, "mmap_length {:#x}", self.mmap_length)?;
+		writeln!(f, "mmap_addr {:#x}", self.mmap_addr)?;
 		writeln!(f, "cmdline {:#x}", self.cmdline)?;
 		writeln!(f, "cmdsize {:#x}", self.cmdsize)?;
 		writeln!(f, "cpu_freq {}", self.cpu_freq)?;
